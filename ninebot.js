@@ -15,15 +15,37 @@
  */
 
 import got from "got";
-let sendNotify;
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+
+// 自动加载 sendNotify（兼容所有目录）
+let sendNotify = async (title, message) =>
+  console.log(`[通知] ${title}\n${message}`);
 try {
-  const notifyModule = await import(
-    `${process.env.QL_DIR || "/ql"}/scripts/sendNotify.js`
-  );
-  sendNotify = notifyModule.sendNotify;
-} catch (err) {
-  console.error("❌ 无法加载 sendNotify.js：", err.message);
-  sendNotify = async (title, msg) => console.log(`[通知] ${title}\\n${msg}`);
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  const possiblePaths = [
+    path.join(__dirname, "sendNotify.js"),
+    path.join(__dirname, "../sendNotify.js"),
+    "/ql/scripts/sendNotify.js",
+    "/ql/scripts/utils/sendNotify.js",
+    "/ql/scripts/notify/sendNotify.js",
+    "/ql/scripts/auto/sendNotify.js",
+  ];
+
+  for (const notifyPath of possiblePaths) {
+    if (fs.existsSync(notifyPath)) {
+      const notifyModule = await import(`file://${notifyPath}`);
+      if (typeof notifyModule.sendNotify === "function") {
+        sendNotify = notifyModule.sendNotify;
+        break;
+      }
+    }
+  }
+} catch (e) {
+  console.error("❌ 无法加载 sendNotify.js：", e.message);
 }
 
 const configRaw = process.env.NINEBOT_CONFIG || "";
@@ -51,25 +73,36 @@ const SIGN_URL =
 const STATUS_URL =
   "https://cn-cbu-gateway.ninebot.com/portal/api/user-sign/v2/status";
 
+function createHeaders(authorization) {
+  return {
+    Accept: "application/json, text/plain, */*",
+    "Content-Type": "application/json",
+    Authorization: authorization,
+    Origin: "https://h5-bj.ninebot.com",
+    Referer: "https://h5-bj.ninebot.com/",
+    "User-Agent": "NinebotApp/6.9.3 (iOS; iPhone12,1; zh_CN; Scale/3.00)",
+    "X-Client-Version": "6.9.3",
+    "X-Client-Platform": "iOS",
+    from_platform_1: "1",
+    language: "zh",
+    Host: "cn-cbu-gateway.ninebot.com",
+    "Accept-Encoding": "gzip, deflate, br",
+  };
+}
+
 async function getSignStatus(deviceId, authorization) {
   const client = got.extend({
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "Content-Type": "application/json",
-      Authorization: authorization,
-      Origin: "https://h5-bj.ninebot.com",
-      Referer: "https://h5-bj.ninebot.com/",
-      "User-Agent": "NinebotApp/6.9.3 (iOS; iPhone12,1; zh_CN; Scale/3.00)",
-      "X-Client-Version": "6.9.3",
-      "X-Client-Platform": "iOS",
-    },
+    headers: createHeaders(authorization),
     responseType: "json",
     timeout: { request: 10000 },
   });
 
   try {
     const { body, statusCode } = await client.get(STATUS_URL, {
-      searchParams: { t: Date.now() },
+      searchParams: {
+        t: Date.now(),
+        deviceId: deviceId,
+      },
     });
     if (statusCode !== 200) return [null, `HTTP ${statusCode}`];
     if (body.code !== 0) return [null, body.msg || "未知错误"];
@@ -81,16 +114,7 @@ async function getSignStatus(deviceId, authorization) {
 
 async function performSignIn(deviceId, authorization) {
   const client = got.extend({
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "Content-Type": "application/json",
-      Authorization: authorization,
-      Origin: "https://h5-bj.ninebot.com",
-      Referer: "https://h5-bj.ninebot.com/",
-      "User-Agent": "NinebotApp/6.9.3 (iOS; iPhone12,1; zh_CN; Scale/3.00)",
-      "X-Client-Version": "6.9.3",
-      "X-Client-Platform": "iOS",
-    },
+    headers: createHeaders(authorization),
     responseType: "json",
     timeout: { request: 10000 },
   });
