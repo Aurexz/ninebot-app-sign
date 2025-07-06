@@ -15,7 +15,16 @@
  */
 
 import got from "got";
-import { sendNotify } from "/ql/scripts/sendNotify.js";
+let sendNotify;
+try {
+  const notifyModule = await import(
+    `${process.env.QL_DIR || "/ql"}/scripts/sendNotify.js`
+  );
+  sendNotify = notifyModule.sendNotify;
+} catch (err) {
+  console.error("❌ 无法加载 sendNotify.js：", err.message);
+  sendNotify = async (title, msg) => console.log(`[通知] ${title}\\n${msg}`);
+}
 
 const configRaw = process.env.NINEBOT_CONFIG || "";
 
