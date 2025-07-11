@@ -8,5 +8,9 @@
 | -------------- | ------------------------ | ----------------------- |
 | NINEBOT_CONFIG | `deviceId@authorization` | 多个账号用换行或 & 分隔 |
 
-> "deviceId": 在 app 中抓取/portal/api/user-sign/v2/sign 请求参数，获取 deviceId。
-> "authorization": 抓取上述接口的*请求头*，获取 authorization。
+> "deviceId": 在 APP 中抓取，找到/portal/api/user-sign/v2/sign，在该 request 参数中可以获取到
+> "authorization": 从该 API 的 headers 中可以获取到
+
+#### 致谢
+
+> KotoriMinami/qinglong-sign
